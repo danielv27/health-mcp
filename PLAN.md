@@ -20,26 +20,23 @@ the shape is what it is. In particular: [no Albert Heijn integration](./docs/adr
 [one SQL read tool](./docs/adr/0006-one-read-only-sql-tool-instead-of-narrow-read-tools.md),
 [Claude Code remote access instead of a VM](./docs/adr/0007-claude-code-remote-access-instead-of-a-vm.md).
 
-**Hevy Pro is not yet active** and will be bought once the integration is built. Two
-consequences:
-
-- **Build food-first.** The food half needs no credentials and is fully testable today.
-- **The Hevy client is written blind**, against docs rather than observed responses. So
-  `sync` persists the raw JSON payload first and normalizes into `workout_exercises` /
-  `workout_sets` as a **separate, re-runnable pass**. A shape surprise on subscription day
-  is then a re-parse of stored data, not a re-sync and not a migration.
+**Hevy Pro is active** as of 2026-08-12, and the client was rewritten against observed
+responses rather than docs. The two-phase shape stayed anyway: `sync` persists the raw
+JSON payload first and normalizes into `workout_exercises` / `workout_sets` as a
+**separate, re-runnable pass**, so a parsing mistake costs a re-parse of stored data
+rather than a re-sync. That bet paid for itself immediately — see the quirks table below.
 
 ## Status
 
 Design is settled — the decisions below came out of a grilling session and are recorded
-in `docs/adr/`. Implementation has barely started.
+in `docs/adr/`. Both halves are now built and verified against live data.
 
 | | |
 |---|---|
-| Done | `pyproject.toml`; `day.py`; `config.py`; `migrations/001_init.sql` (all 9 tables); `db.py` (rw/ro + migration runner); `tools/food.py`; `tools/query.py`; `server.py` (5 tools registered: `add_product`, `find_product`, `log_food`, `delete_food_entry`, `query`); `cli.py` (`serve` works, `sync` stubbed); `.mcp.json` (project-scoped, see ADR-0007) — 50 tests passing, plus a manual `call_tool` smoke test end to end (add → find → log → query → a rejected `DROP TABLE`) |
-| Next | Open a Claude Code session in this repo (from the phone, via remote access) and approve the `.mcp.json` prompt — first real live test |
-| Then | `hevy.py` (client + incremental sync, written blind against docs — see PLAN.md "Hevy sync"), register `sync_workouts` in `server.py` |
-| Not started | Hevy sync, `normalize`, backups, `launchd` for `sync` |
+| Done | `pyproject.toml`; `day.py`; `config.py`; `migrations/001_init.sql` (all 9 tables); `db.py` (rw/ro + migration runner); `tools/food.py`; `tools/query.py`; `hevy.py` (client + delta/full sync + `normalize`); `tools/training.py`; `server.py` (all 6 tools registered); `cli.py` (`serve`, `sync [--full]`, `normalize`); `.mcp.json` (project-scoped, see ADR-0007) — **77 tests passing** |
+| Verified live | 2026-08-12: 102 workouts / 583 exercises / 1,961 sets / 451 templates / 11 measurements, in ~3 s. Full and delta syncs agree, `PRAGMA foreign_key_check` clean, cross-source volume-vs-protein join works, a deliberately broken key lands in `sync_state.last_error` and leaves the cursor untouched |
+| Next | Open a Claude Code session in this repo (from the phone, via remote access) and approve the `.mcp.json` prompt — first real live test through the agent rather than the CLI |
+| Not started | Nightly backup, `launchd` job for `sync` |
 
 ## Architecture
 
@@ -145,31 +142,59 @@ than anything else.
 
 ## Hevy sync
 
-Auth is one `api-key: <uuid>` header on `https://api.hevyapp.com/v1`.
+**The OpenAPI spec is at `https://api.hevyapp.com/docs/` — read it rather than guessing.**
+It is browsable as Swagger UI; the machine-readable spec is at `docs/swagger.json`, and
+the caps below live in the parameter *descriptions*, not in JSON Schema `maximum`.
 
-| Endpoint | Use |
+Auth is one `api-key: <uuid>` header on `https://api.hevyapp.com/v1`. Collection
+endpoints answer `{"page": n, "page_count": m, "<collection>": [...]}` — page until
+`page_count`, there is no next-link.
+
+| Endpoint | Use | `pageSize` max |
+|---|---|---|
+| `GET /v1/workouts/events?since` | everything — updates **and** deletions | 10 |
+| `GET /v1/exercise_templates` | `exercise_template_id` → muscle group | 100 |
+| `GET /v1/body_measurements` | weight / body-fat series | 10 |
+
+`GET /v1/workouts` exists but **isn't used**: `since` defaults to `1970-01-01T00:00:00Z`,
+so an events replay from the epoch returns the whole history *and* the deletions, which
+makes a full resync the same code path as a delta. This was measured — an epoch replay
+returns 102 workouts, matching `GET /v1/workouts/count`.
+
+Two documented details the code leans on: events are ordered **newest to oldest** (so the
+first event naming a workout wins, and a deletion correctly supersedes an older edit of
+the same workout), and deletion events are flat — `{"type": "deleted", "id",
+"deleted_at"}` — rather than nesting a workout the way `updated` does.
+
+### Where the spec and the API disagree
+
+Both are handled in `hevy.py`, and both were found by hitting the API:
+
+| | |
 |---|---|
-| `GET /v1/workouts?page&pageSize` | initial backfill |
-| `GET /v1/workouts/events?since` | incremental — updates **and** deletions |
-| `GET /v1/exercise_templates` | `exercise_template_id` → muscle group |
-| `GET /v1/body_measurements` | weight / body-fat series |
+| Empty event feed | Answers `{"workouts": []}` instead of `{"events": [...]}` — the collection key changes when the feed is empty. Undocumented; the client accepts either, and without this every no-op sync fails |
+| Equipment | Spec says `equipment_category`, the API sends `equipment`. Both are read |
 
-`/workouts/events` makes sync cheap: keep the cursor in `sync_state` and fetch only
-deltas. It emits deletion events — process them, or deleted workouts linger forever.
-`pageSize` caps differ per endpoint (10 or 100); read the cap from the response rather
-than hardcoding it. [`chrisdoc/hevy-mcp`](https://github.com/chrisdoc/hevy-mcp) is worth
-reading for endpoint quirks, though we're not depending on it.
+### The cursor
+
+There is no server-issued cursor; `since` is just a timestamp. Sync stores **the moment
+it started**, captured before the first request, so anything saved mid-sync is picked up
+next time. Re-delivery is harmless because every write is an upsert. The cursor advances
+only on success, so a failed sync retries the same window rather than skipping it.
 
 Sync is two phases against the same data, and they are separable on purpose:
 
 1. **Fetch** — write each workout's raw JSON into `workouts.raw`, advance the cursor.
 2. **Normalize** — read `workouts.raw`, populate `workout_exercises` / `workout_sets`.
-   Idempotent and re-runnable over the whole table (`health-mcp normalize`).
+   Idempotent and re-runnable over the whole table (`health-mcp normalize`), with no
+   network access.
 
-Written without live API access, so phase 2 is where the guesses live. Keeping it
-re-runnable means a wrong guess costs a re-parse, not a re-sync.
+`--full` replays from the epoch and re-parses the whole table — the "make the local copy
+right" path when the cursor has drifted. It is the same code as a delta with a different
+`since`, not a second implementation.
 
-Cron: `0 */6 * * * health-mcp sync >> ~/health/sync.log 2>&1`.
+Not yet scheduled. `0 */6 * * * health-mcp sync >> ~/health/sync.log 2>&1`, or a
+`launchd` job (ADR-0007).
 
 ## Access
 
@@ -177,28 +202,36 @@ Cron: `0 */6 * * * health-mcp sync >> ~/health/sync.log 2>&1`.
   inbound port, no VM to provision. See [ADR-0007](./docs/adr/0007-claude-code-remote-access-instead-of-a-vm.md).
 - Reliability now depends on this Mac staying on and awake, not a VM built for the job —
   check sleep/power settings if phone access needs to hold up.
-- Hevy API key in `~/health/.env`, `chmod 600`. Never in the repo.
+- Hevy API key in `~/health/.env` as `HEALTH_MCP_HEVY_API_KEY`, `chmod 600`. Never in the
+  repo — `config.py` reads it from there, and nothing else should.
 - Nightly `sqlite3 .backup` to a second file; this database is not reconstructible from
-  upstream, since the food log exists nowhere else. Not yet set up.
+  upstream, since the food log exists nowhere else. Not yet set up — the only backup is
+  the one-off `~/health/health.db.bak-*` taken before the first sync.
 
 ## Verification
 
-1. **Unit — `day.py`.** The 04:00 rule across a DST changeover in both directions, and at
-   03:59 vs 04:01 local. This is the one piece of pure logic that would silently corrupt
-   every rollup if wrong.
-2. **Unit — portion maths.** 200 g of a 10 g-protein/100 g Product yields exactly 20 g.
-3. **`query` is genuinely read-only.** `INSERT`, `UPDATE`, `DROP`, `PRAGMA`, and two
+1. ✅ **Unit — `day.py`.** The 04:00 rule across a DST changeover in both directions, and
+   at 03:59 vs 04:01 local. This is the one piece of pure logic that would silently
+   corrupt every rollup if wrong.
+2. ✅ **Unit — portion maths.** 200 g of a 10 g-protein/100 g Product yields exactly 20 g.
+3. ✅ **`query` is genuinely read-only.** `INSERT`, `UPDATE`, `DROP`, `PRAGMA`, and two
    statements separated by a semicolon must all be refused; a plain `SELECT` must work.
-4. **Live smoke.** `GET /v1/user/info` returns 200 — proves the key and Pro status. Then
-   a real sync populates `workouts` and `sync_state.cursor` advances.
-5. **Deletion handling.** Delete a workout in the Hevy app, run `sync`, confirm the row
-   disappears rather than lingering.
-6. **End to end from the phone.** Open a Claude Code session in this repo via remote
+4. ✅ **Live smoke.** `GET /v1/user/info` returns 200 — proves the key and Pro status.
+   A real sync populates `workouts` and `sync_state.cursor` advances; the next sync is a
+   no-op.
+5. ⬜ **Deletion handling.** Delete a workout in the Hevy app, run `sync`, confirm the row
+   disappears rather than lingering. *Partly covered: the events feed replayed a real
+   deletion during the first backfill, and full-sync reconciliation is unit-tested — but
+   an end-to-end delete-then-sync hasn't been done against the app.*
+6. ⬜ **End to end from the phone.** Open a Claude Code session in this repo via remote
    access, approve the `.mcp.json` prompt, `/mcp` lists the tools, then *"log 200 g of my
    cottage cheese, then show me this week's training volume next to my protein intake"*
-   — exercises a write, the sync, and a cross-source join in one shot.
-7. **Failure visibility.** Break the API key deliberately, run a sync, confirm
-   `sync_state.last_error` is populated and readable via `query`.
+   — exercises a write, the sync, and a cross-source join in one shot. *The query itself
+   works against real data via the CLI; the phone path is untested.*
+7. ✅ **Failure visibility.** Break the API key deliberately, run a sync, confirm
+   `sync_state.last_error` is populated and readable via `query`. Confirmed also that a
+   failed sync leaves the cursor untouched, and that a SQLite-level failure is recorded
+   the same way rather than escaping as a traceback.
 
 ## Future ideas
 

@@ -103,11 +103,11 @@ def delete_food_entry(id: int) -> None:
 
 @mcp.tool()
 def sync_workouts(full: bool = False) -> dict:
-    """Sync workouts from Hevy and normalize into exercises and sets.
-
-    Incremental by default (delta since last cursor). Pass `full=True` to re-fetch
-    everything from the beginning. Returns a summary of what was fetched, updated,
-    deleted, and normalized."""
+    """Pull new training data from Hevy into the database. Call this before answering a
+    question about recent training — a workout finished after the last sync isn't in the
+    database until you do. Delta by default and cheap to call. `full=True` re-fetches
+    everything and reconciles deletions; use it only if the data looks wrong, not
+    routinely. Also refreshes exercise templates and body measurements."""
     conn = rw()
     try:
         return training_tools.sync_workouts(conn, full=full)
