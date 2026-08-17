@@ -55,7 +55,32 @@ One completed training session, as recorded in Hevy. Has a start and end, and co
 the exercises performed.
 _Avoid_: Session, training, activity
 
+**Activity**:
+One completed cardio session (run, ride, swim, etc.) as recorded in Strava. Has a distance
+and duration. Distinct from a Workout: Strava's summary data, not Hevy's, and no
+per-exercise/per-set structure underneath it.
+_Avoid_: Workout, session, exercise
+
 **Volume**:
 Total weight moved within some scope — a workout, an exercise, or a muscle group over a
 week. The unit of comparison against intake.
 _Avoid_: Tonnage, load, work
+
+### Movement
+
+**Daily Steps**:
+One Day's step count, imported by hand from an Apple Health CSV export rather than synced
+from an API. Approximate by construction: a phone and a watch each report their own count
+for overlapping stretches of a day, and Daily Steps takes the larger of the two rather
+than summing them (docs/adr/0010) — a rough cross-reference for "did I move more today,"
+not a precise fitness metric the way Volume is.
+_Avoid_: Step count, activity (this project's Activity is a Strava session, not steps)
+
+**Apple Workout**:
+One exercise session as recorded directly in Apple Health (HealthKit), imported by hand
+from a CSV export — typically the Watch's own Workout app, or another app (Strava)
+writing to HealthKit when the live Strava sync isn't connected. Distinct from both a
+Workout (Hevy specifically) and an Activity (the live Strava sync specifically): an Apple
+Workout sourced from Hevy is dropped at import time rather than stored, since it would
+duplicate a Workout that already exists (docs/adr/0011).
+_Avoid_: Workout, session, exercise, activity

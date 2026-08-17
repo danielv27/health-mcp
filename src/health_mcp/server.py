@@ -8,9 +8,12 @@ from datetime import datetime
 
 from mcp.server import MCPServer
 
+from health_mcp import apple_workouts, steps
 from health_mcp.db import ro, rw
+from health_mcp.tools import apple_workouts as apple_workouts_tools
 from health_mcp.tools import food as food_tools
 from health_mcp.tools import query as query_tool
+from health_mcp.tools import steps as steps_tools
 from health_mcp.tools import training as training_tools
 from health_mcp.tools.food import Macros
 
@@ -116,6 +119,60 @@ def sync_workouts(full: bool = False) -> dict:
 
 
 @mcp.tool()
+def sync_activities(full: bool = False) -> dict:
+    """Pull new cardio activities (runs, rides, etc.) from Strava into the database. Call
+    this before answering a question about recent cardio. Delta by default: it only sees
+    activities that *started* after the last sync, so an activity edited afterward, or
+    uploaded later with a back-dated start time, won't show up until `full=True` re-fetches
+    everything and reconciles deletions — use `full` if the data looks wrong, not
+    routinely. Fails with a clear error if Strava hasn't been connected yet (run
+    `health-mcp strava-auth` first, outside the agent)."""
+    conn = rw()
+    try:
+        return training_tools.sync_activities(conn, full=full)
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def import_steps(path: str) -> dict:
+    """Import an Apple Health step-count CSV export (e.g. from the "Simple Health Export
+    CSV" app) into the database. Call this when the user shares a fresh export in chat —
+    pass the local file path it landed at. Always reprocesses the whole file and upserts
+    by day, so re-importing an overlapping or repeated export is harmless; there's no
+    delta/cursor concept here, unlike sync_workouts/sync_activities. A day with samples
+    from multiple sources (phone and watch, say) is deduplicated by taking the larger of
+    each source's daily total, not summing across sources — see docs/adr/0010."""
+    conn = rw()
+    try:
+        return steps_tools.import_steps(conn, path)
+    except steps.StepsError as exc:
+        return {"ok": False, "error": str(exc)}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
+def import_workouts(paths: list[str]) -> dict:
+    """Import Apple Health workout CSV export(s) — one file per HealthKit workout type
+    (Running, Cycling, Walking, ...), so this usually means several paths at once. Call
+    this when the user shares fresh exports in chat — pass the local file paths they
+    landed at. Rows sourced from Hevy are dropped, not stored: Hevy already syncs directly
+    via sync_workouts, and keeping both would double-count that training. Rows sourced
+    from Strava are kept (there's no live Strava sync connected yet, see sync_activities) —
+    once Strava is connected, the same sessions may appear in both `activities` and here;
+    prefer `activities` for anything after that point. Always reprocesses and upserts by
+    a synthetic id, so re-importing an overlapping export is harmless."""
+    conn = rw()
+    try:
+        return apple_workouts_tools.import_workouts(conn, paths)
+    except apple_workouts.AppleWorkoutError as exc:
+        return {"ok": False, "error": str(exc)}
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def query(sql: str) -> list[dict]:
     """Read-only SQL against the health database. Must be a single SELECT or WITH
     statement.
@@ -132,6 +189,12 @@ def query(sql: str) -> list[dict]:
       workout_sets(id, workout_exercise_id, idx, type, weight_kg, reps, rpe,
                duration_s, distance_m)
       body_measurements(date, weight_kg, fat_percent)
+      activities(id, name, type, sport_type, start_date, date, elapsed_time_s,
+               moving_time_s, distance_m, total_elevation_gain_m, average_speed_mps,
+               max_speed_mps, average_heartrate, max_heartrate)
+      daily_steps(date, steps, source)
+      apple_workouts(id, source, workout_type, start_date, end_date, date, duration_s,
+               energy_kcal, distance_m)
       sync_state(source, cursor, last_run_at, last_status, last_error)
 
     `date` columns are always the 04:00 Europe/Amsterdam day, computed at write time —

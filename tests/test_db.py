@@ -16,6 +16,9 @@ EXPECTED_TABLES = {
     "workout_sets",
     "body_measurements",
     "sync_state",
+    "activities",
+    "daily_steps",
+    "apple_workouts",
 }
 
 
@@ -43,17 +46,17 @@ def test_migrate_records_schema_version(db_path):
     migrate(db_path)
     conn = rw(db_path)
     try:
-        assert current_version(conn) == 1
+        assert current_version(conn) == 4
     finally:
         conn.close()
 
 
 def test_migrate_is_idempotent(db_path):
     migrate(db_path)
-    migrate(db_path)  # must not re-run 001 and fail on "table already exists"
+    migrate(db_path)  # must not re-run 001/002/003/004 and fail on "table already exists"
     conn = rw(db_path)
     try:
-        assert current_version(conn) == 1
+        assert current_version(conn) == 4
     finally:
         conn.close()
 
