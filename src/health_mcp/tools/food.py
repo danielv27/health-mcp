@@ -57,6 +57,70 @@ def add_product(
     return cur.lastrowid
 
 
+def update_product(
+    conn: sqlite3.Connection,
+    id: int,
+    name: str | None = None,
+    brand: str | None = None,
+    source: str | None = None,
+    kcal_100g: float | None = None,
+    protein_100g: float | None = None,
+    carbs_100g: float | None = None,
+    fat_100g: float | None = None,
+    fibre_100g: float | None = None,
+    sugar_100g: float | None = None,
+    sat_fat_100g: float | None = None,
+    salt_100g: float | None = None,
+    note: str | None = None,
+) -> int:
+    """Overwrite only the given fields of a Catalog Product; omitted fields keep their
+    current value. Any food_log entry already logged against this product_id is
+    re-derived from the corrected per-100g values (kcal/protein/carbs/fat = new value *
+    grams/100) so past entries stop carrying a stale snapshot. Returns the number of
+    food_log entries re-derived."""
+    if source is not None and source not in SOURCES:
+        raise ValueError(f"source must be one of {SOURCES}, got {source!r}")
+
+    fields = {
+        "name": name, "brand": brand, "source": source, "kcal_100g": kcal_100g,
+        "protein_100g": protein_100g, "carbs_100g": carbs_100g, "fat_100g": fat_100g,
+        "fibre_100g": fibre_100g, "sugar_100g": sugar_100g, "sat_fat_100g": sat_fat_100g,
+        "salt_100g": salt_100g, "note": note,
+    }
+    fields = {k: v for k, v in fields.items() if v is not None}
+    if not fields:
+        raise ValueError("no fields to update")
+
+    set_clause = ", ".join(f"{k} = ?" for k in fields)
+    cur = conn.execute(
+        f"UPDATE products SET {set_clause} WHERE id = ?",
+        (*fields.values(), id),
+    )
+    if cur.rowcount == 0:
+        conn.rollback()
+        raise ValueError(f"no product with id {id}")
+
+    product = conn.execute("SELECT * FROM products WHERE id = ?", (id,)).fetchone()
+    relog_cur = conn.execute(
+        """
+        UPDATE food_log SET
+            name = ?,
+            source = ?,
+            kcal = ? * grams / 100.0,
+            protein = ? * grams / 100.0,
+            carbs = ? * grams / 100.0,
+            fat = ? * grams / 100.0
+        WHERE product_id = ?
+        """,
+        (
+            product["name"], product["source"], product["kcal_100g"],
+            product["protein_100g"], product["carbs_100g"], product["fat_100g"], id,
+        ),
+    )
+    conn.commit()
+    return relog_cur.rowcount
+
+
 def find_product(conn: sqlite3.Connection, query: str | None = None) -> list[sqlite3.Row]:
     if query:
         pattern = f"%{query}%"

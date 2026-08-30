@@ -6,7 +6,14 @@ import pytest
 
 from health_mcp.day import day_of, now_utc
 from health_mcp.db import migrate, rw
-from health_mcp.tools.food import Macros, add_product, delete_food_entry, find_product, log_food
+from health_mcp.tools.food import (
+    Macros,
+    add_product,
+    delete_food_entry,
+    find_product,
+    log_food,
+    update_product,
+)
 
 
 @pytest.fixture
@@ -59,6 +66,61 @@ def test_find_product_filters_by_name_or_brand(conn):
     assert [r["name"] for r in find_product(conn, "alpro")] == ["Oat milk"]
     assert len(find_product(conn)) == 2
     assert find_product(conn, "nonexistent") == []
+
+
+# -- update_product ------------------------------------------------------------
+
+
+def test_update_product_overwrites_only_given_fields(conn):
+    pid = make_product(conn, protein_100g=6.9)
+    update_product(conn, pid, protein_100g=12.0)
+
+    row = find_product(conn)[0]
+    assert row["protein_100g"] == 12.0
+    assert row["name"] == "Cottage cheese"
+    assert row["kcal_100g"] == 98.0
+
+
+def test_update_product_rejects_bad_source(conn):
+    pid = make_product(conn)
+    with pytest.raises(ValueError):
+        update_product(conn, pid, source="guessed")
+
+
+def test_update_product_rejects_unknown_id(conn):
+    with pytest.raises(ValueError):
+        update_product(conn, 999, protein_100g=1.0)
+
+
+def test_update_product_rejects_no_fields(conn):
+    pid = make_product(conn)
+    with pytest.raises(ValueError):
+        update_product(conn, pid)
+
+
+def test_update_product_relogs_already_logged_entries(conn):
+    pid = make_product(conn, protein_100g=6.9)
+    entry_id = log_food(conn, 120, product_id=pid)
+    relogged = update_product(conn, pid, protein_100g=12.0)
+
+    assert relogged == 1
+    entry = conn.execute("SELECT protein FROM food_log WHERE id = ?", (entry_id,)).fetchone()
+    assert entry["protein"] == pytest.approx(14.4)
+
+
+def test_update_product_relog_uses_grams_unchanged(conn):
+    pid = make_product(conn)
+    entry_id = log_food(conn, 250, product_id=pid)
+    update_product(conn, pid, kcal_100g=200.0)
+
+    entry = conn.execute("SELECT grams, kcal FROM food_log WHERE id = ?", (entry_id,)).fetchone()
+    assert entry["grams"] == 250
+    assert entry["kcal"] == pytest.approx(500.0)
+
+
+def test_update_product_returns_zero_when_no_entries_logged(conn):
+    pid = make_product(conn)
+    assert update_product(conn, pid, protein_100g=1.0) == 0
 
 
 # -- log_food: portion maths --------------------------------------------------

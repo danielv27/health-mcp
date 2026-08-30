@@ -59,6 +59,40 @@ def add_product(
 
 
 @mcp.tool()
+def update_product(
+    id: int,
+    name: str | None = None,
+    brand: str | None = None,
+    source: str | None = None,
+    kcal_100g: float | None = None,
+    protein_100g: float | None = None,
+    carbs_100g: float | None = None,
+    fat_100g: float | None = None,
+    fibre_100g: float | None = None,
+    sugar_100g: float | None = None,
+    sat_fat_100g: float | None = None,
+    salt_100g: float | None = None,
+    note: str | None = None,
+) -> int:
+    """Correct an existing Catalog Product in place. Pass `id` plus only the fields that
+    are wrong — omitted fields keep their current value. Use this instead of add_product
+    when a Catalog entry's macros or name/brand were entered wrong. Every food_log entry
+    already logged against this product_id is automatically re-derived from the
+    corrected per-100g values (grams unchanged) — there is no separate step to fix past
+    entries. Returns how many food_log entries were re-derived."""
+    conn = rw()
+    try:
+        return food_tools.update_product(
+            conn, id, name=name, brand=brand, source=source, kcal_100g=kcal_100g,
+            protein_100g=protein_100g, carbs_100g=carbs_100g, fat_100g=fat_100g,
+            fibre_100g=fibre_100g, sugar_100g=sugar_100g, sat_fat_100g=sat_fat_100g,
+            salt_100g=salt_100g, note=note,
+        )
+    finally:
+        conn.close()
+
+
+@mcp.tool()
 def find_product(query: str | None = None) -> list[dict]:
     """Search the Catalog by name or brand (substring match). Omit `query` to list the
     whole Catalog. Call this before log_food against a Catalog Product — the result's
