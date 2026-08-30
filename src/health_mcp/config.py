@@ -10,7 +10,7 @@ class Settings(BaseSettings):
         env_prefix="HEALTH_MCP_", env_file=Path(__file__).parent.parent.parent / ".env"
     )
 
-    db_path: Path = Path.home() / "health" / "health.db"
+    db_path: Path = Path(__file__).parent.parent.parent / "data" / "health.db"
     hevy_api_key: str | None = None
     strava_client_id: str | None = None
     strava_client_secret: str | None = None

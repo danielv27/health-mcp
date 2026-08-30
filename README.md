@@ -58,7 +58,7 @@ uv sync
 Configure via a `.env` file in the repo root (or `HEALTH_MCP_*` env vars):
 
 ```
-HEALTH_MCP_DB_PATH=/path/to/health.db        # defaults to ~/health/health.db
+HEALTH_MCP_DB_PATH=/path/to/health.db        # defaults to ./data/health.db (repo-relative, gitignored)
 HEALTH_MCP_HEVY_API_KEY=...                  # required for sync_workouts / `sync`
 HEALTH_MCP_STRAVA_CLIENT_ID=...              # from strava.com/settings/api
 HEALTH_MCP_STRAVA_CLIENT_SECRET=...          # required for sync_activities / `strava-auth`
