@@ -1,8 +1,13 @@
 {
   "mcpServers": {
     "health-mcp": {
-      "command": "uv",
-      "args": ["run", "--directory", "/Users/danielverner/Programming/health-mcp", "health-mcp", "serve"]
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "-v", "/home/daniel/Projects/health-mcp/data:/app/data",
+        "--env-file", "/home/daniel/Projects/health-mcp/.env",
+        "health-mcp:latest"
+      ]
     }
   }
 }
