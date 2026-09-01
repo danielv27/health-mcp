@@ -7,3 +7,5 @@ __pycache__/
 .env
 .env.local
 /data/
+node_modules/
+web-frontend/dist/

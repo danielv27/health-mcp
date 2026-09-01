@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* health-mcp Food Log — "Ledger" design system. See DESIGN.md.
+   shadcn-vue "new-york" style, neutral base, single emerald accent reserved for
+   the on-target/primary-action role; amber and red stay status-only (over target,
+   destructive). Light is the default use scene (checked in daylight, on a phone,
+   many times a day); dark follows system preference. */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 12%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 12%;
+
+    --primary: 160 84% 28%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 10% 20%;
+
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 40%;
+
+    --accent: 240 5% 94%;
+    --accent-foreground: 240 10% 15%;
+
+    --destructive: 4 76% 48%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 160 70% 32%;
+    --success-foreground: 0 0% 100%;
+
+    --border: 240 6% 88%;
+    --input: 240 6% 88%;
+    --ring: 160 84% 28%;
+
+    --radius: 0.6rem;
+
+    --chart-1: 160 70% 38%;
+    --chart-2: 32 90% 52%;
+    --chart-3: 217 80% 55%;
+    --chart-4: 280 55% 55%;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 240 10% 8%;
+      --foreground: 0 0% 95%;
+
+      --card: 240 9% 11%;
+      --card-foreground: 0 0% 95%;
+
+      --popover: 240 9% 11%;
+      --popover-foreground: 0 0% 95%;
+
+      --primary: 160 70% 42%;
+      --primary-foreground: 240 10% 8%;
+
+      --secondary: 240 6% 16%;
+      --secondary-foreground: 0 0% 92%;
+
+      --muted: 240 6% 16%;
+      --muted-foreground: 240 5% 65%;
+
+      --accent: 240 6% 18%;
+      --accent-foreground: 0 0% 95%;
+
+      --destructive: 4 70% 55%;
+      --destructive-foreground: 0 0% 98%;
+
+      --success: 160 60% 45%;
+      --success-foreground: 240 10% 8%;
+
+      --border: 240 6% 20%;
+      --input: 240 6% 20%;
+      --ring: 160 70% 42%;
+
+      --chart-1: 160 60% 50%;
+      --chart-2: 32 90% 60%;
+      --chart-3: 217 80% 65%;
+      --chart-4: 280 55% 65%;
+    }
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+
+  ::selection {
+    background: hsl(var(--primary) / 0.25);
+    color: hsl(var(--foreground));
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--border));
+    border-radius: 999px;
+  }
+
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+}

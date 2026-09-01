@@ -14,9 +14,13 @@ MIGRATIONS_DIR = Path(__file__).parent / "migrations"
 
 
 def rw(db_path: Path | None = None) -> sqlite3.Connection:
+    """check_same_thread=False: a FastAPI sync dependency's open (`yield`) and close
+    (post-`yield`) can each land on a different threadpool worker, which sqlite3's
+    default same-thread check rejects even though the two phases never run
+    concurrently."""
     path = db_path or settings.db_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.execute("PRAGMA journal_mode = WAL")
     conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
@@ -25,7 +29,7 @@ def rw(db_path: Path | None = None) -> sqlite3.Connection:
 
 def ro(db_path: Path | None = None) -> sqlite3.Connection:
     path = db_path or settings.db_path
-    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     return conn
 

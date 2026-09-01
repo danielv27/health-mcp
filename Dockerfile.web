@@ -1,0 +1,24 @@
+# Food-logging UI: FastAPI backend (imports health_mcp.tools.* directly) serving the
+# built Vue SPA as static files. Separate from the stdio MCP server's Dockerfile —
+# this is a new HTTP surface for a human, not a change to the MCP transport (ADR-0005).
+
+FROM node:22-slim AS frontend
+WORKDIR /frontend
+COPY web-frontend/package.json ./
+RUN npm install --no-audit --no-fund
+COPY web-frontend/ ./
+RUN npm run build
+
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+
+WORKDIR /app
+
+COPY pyproject.toml uv.lock ./
+COPY src ./src
+
+RUN uv sync --locked --no-dev --extra web
+
+COPY --from=frontend /frontend/dist ./src/health_mcp/web/static
+
+EXPOSE 8000
+ENTRYPOINT ["/app/.venv/bin/uvicorn", "health_mcp.web.app:app", "--host", "0.0.0.0", "--port", "8000"]

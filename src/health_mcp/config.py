@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     hevy_api_key: str | None = None
     strava_client_id: str | None = None
     strava_client_secret: str | None = None
+    anthropic_api_key: str | None = None
 
 
 settings = Settings()

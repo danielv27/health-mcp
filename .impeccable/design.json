@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-01T08:00:00Z",
+  "title": "Design System: health-mcp Food Log",
+  "extensions": {
+    "colorMeta": {
+      "amber": { "role": "primary", "displayName": "Backlit Amber", "canonical": "#f2a71b" },
+      "good": { "role": "secondary", "displayName": "Cockpit Green", "canonical": "#4ec9a0" },
+      "over": { "role": "secondary", "displayName": "Warning Red-Orange", "canonical": "#e5533d" },
+      "panel-bg": { "role": "neutral", "displayName": "Panel", "canonical": "#15171a" },
+      "panel-recess": { "role": "neutral", "displayName": "Recess", "canonical": "#101214" },
+      "bezel": { "role": "neutral", "displayName": "Bezel (brushed)", "canonical": "#2a2d33" },
+      "bezel-light": { "role": "neutral", "displayName": "Bezel Light (brushed)", "canonical": "#3d4149" },
+      "rivet": { "role": "neutral", "displayName": "Rivet", "canonical": "#4a4e57" },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "#e8e6df" },
+      "text-dim": { "role": "neutral", "displayName": "Text Dim", "canonical": "#aeb2b9" }
+    },
+    "typographyMeta": {
+      "mono": { "displayName": "IBM Plex Mono", "purpose": "Every numeral: dial readouts, grams, kcal, field values." },
+      "label": { "displayName": "IBM Plex Mono (label)", "purpose": "Dial labels, section headings, meal headers, badges — uppercase tracked, 0.7rem floor." },
+      "body": { "displayName": "IBM Plex Sans", "purpose": "Food/entry names and free-text fields." }
+    },
+    "shadows": [
+      { "name": "gauge-lift", "value": "inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.5)", "purpose": "Raised chassis surfaces: dial housings, toggle rows, the cart tray." },
+      { "name": "gauge-glow-amber", "value": "drop-shadow(0 0 6px rgba(242,167,27,.35))", "purpose": "Backlight on a dial ring under target." },
+      { "name": "gauge-glow-over", "value": "drop-shadow(0 0 7px rgba(229,83,61,.55))", "purpose": "Backlight on a dial ring over target." },
+      { "name": "recess", "value": "inset 0 1px 3px rgba(0,0,0,.6)", "purpose": "Sunken surfaces: toggle-switch channel, inputs." },
+      { "name": "toast-lift", "value": "0 6px 18px rgba(0,0,0,.5)", "purpose": "The undo toast, floating above the panel." }
+    ],
+    "motion": [
+      { "name": "gauge-sweep", "value": "stroke-dashoffset 0.5s cubic-bezier(0.2, 0.8, 0.2, 1)", "purpose": "Dial-ring fill animating toward its new value after a commit." },
+      { "name": "toggle-flip", "value": "transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease", "purpose": "Toggle-switch lever sliding and glowing on tap; state is persistent (on = in the pending meal cart), not a timed revert." },
+      { "name": "toast-enter", "value": "opacity 0.2s ease, transform 0.2s ease", "purpose": "Undo toast entering/leaving from the bottom." }
+    ],
+    "breakpoints": [
+      { "name": "gauges-4-across", "value": "560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Dial Gauge",
+      "kind": "custom",
+      "refersTo": "dial-gauge",
+      "description": "Backlit ring gauge showing one macro's progress toward its daily target; the panel's signature component.",
+      "html": "<div class=\"ds-dial\"><svg viewBox=\"0 0 100 100\" class=\"ds-dial-ring\"><circle class=\"ds-dial-track\" cx=\"50\" cy=\"50\" r=\"42\" /><circle class=\"ds-dial-fill\" cx=\"50\" cy=\"50\" r=\"42\" /></svg><div class=\"ds-dial-readout\"><span class=\"ds-dial-value\">699</span><span class=\"ds-dial-of\">/2400</span><span class=\"ds-dial-pct\">29%</span></div><div class=\"ds-dial-label\">KCAL</div></div>",
+      "css": ".ds-dial { position: relative; display: flex; flex-direction: column; align-items: center; gap: 0.4rem; padding: 0.9rem 0.6rem 0.7rem; background: repeating-linear-gradient(100deg, rgba(255,255,255,.035) 0px, rgba(255,255,255,.035) 1px, rgba(0,0,0,.05) 1px, rgba(0,0,0,.05) 2px), linear-gradient(180deg, #3d4149, #2a2d33); border-radius: 14px; box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.5); } .ds-dial-ring { width: 100%; max-width: 110px; aspect-ratio: 1; transform: rotate(-90deg); filter: drop-shadow(0 0 6px rgba(242,167,27,.35)); } .ds-dial-track { fill: #101214; stroke: rgba(255,255,255,.06); stroke-width: 7; } .ds-dial-fill { fill: none; stroke: #f2a71b; stroke-width: 7; stroke-linecap: round; stroke-dasharray: 264; stroke-dashoffset: 187; transition: stroke-dashoffset .5s cubic-bezier(.2,.8,.2,1); } .ds-dial-readout { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -46%); display: flex; flex-direction: column; align-items: center; font-family: 'IBM Plex Mono', monospace; line-height: 1.05; } .ds-dial-value { font-size: 1.35rem; font-weight: 600; color: #e8e6df; } .ds-dial-of { font-size: .72rem; color: #aeb2b9; } .ds-dial-pct { font-size: .72rem; color: #f2a71b; margin-top: .1rem; } .ds-dial-label { font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #aeb2b9; }"
+    },
+    {
+      "name": "Toggle Switch (Add to Meal)",
+      "kind": "custom",
+      "refersTo": "food-toggle",
+      "description": "A recent/frequent food row with a toggle-switch control that stages it into the pending meal cart. Persistent state, not a fire-and-revert pulse — see The Honest State Rule.",
+      "html": "<button class=\"ds-toggle-row ds-toggle-row--in-cart\"><span class=\"ds-toggle-switch\"><span class=\"ds-toggle-lever\"></span></span><span class=\"ds-toggle-info\"><span class=\"ds-toggle-name\">Almonds</span><span class=\"ds-toggle-meta\"><span class=\"ds-badge ds-badge-estimated\">estimated</span><span>30g · 174 kcal</span></span></span><span class=\"ds-toggle-mark\">in meal</span></button>",
+      "css": ".ds-toggle-row { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .6rem .7rem; background: #15171a; border: 1px solid rgba(255,255,255,.05); border-radius: 10px; cursor: pointer; text-align: left; } .ds-toggle-row--in-cart { border-color: #7a5713; } .ds-toggle-switch { flex: none; width: 34px; height: 18px; border-radius: 9px; background: #101214; border: 1px solid #4a4e57; position: relative; box-shadow: inset 0 1px 3px rgba(0,0,0,.6); } .ds-toggle-lever { position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #aeb2b9; transition: transform .2s ease, background .2s ease, box-shadow .2s ease; } .ds-toggle-row--in-cart .ds-toggle-lever { transform: translateX(16px); background: #f2a71b; box-shadow: 0 0 6px #f2a71b; } .ds-toggle-name { font-size: .9rem; color: #e8e6df; font-family: 'IBM Plex Sans', sans-serif; } .ds-toggle-meta { display: flex; align-items: center; gap: .5rem; font-family: 'IBM Plex Mono', monospace; font-size: .72rem; color: #aeb2b9; } .ds-badge { padding: .1rem .4rem; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; font-size: .7rem; border: 1px solid currentColor; } .ds-badge-estimated { color: #f2a71b; } .ds-badge-verified { color: #4ec9a0; } .ds-toggle-mark { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; text-transform: uppercase; color: #f2a71b; }"
+    },
+    {
+      "name": "Meal Cart Tray",
+      "kind": "custom",
+      "refersTo": "cart-tray",
+      "description": "Sticky bottom staging area for the meal being built — meal-type chips, staged items, the one control that actually writes to the server.",
+      "html": "<div class=\"ds-cart\"><div class=\"ds-cart-chips\"><button class=\"ds-chip ds-chip--active\">breakfast</button><button class=\"ds-chip\">lunch</button><button class=\"ds-chip\">dinner</button><button class=\"ds-chip\">snack</button></div><ul class=\"ds-cart-list\"><li>Almonds · 30g</li></ul><button class=\"ds-cart-commit\">Log breakfast · 1 item · 174 kcal</button></div>",
+      "css": ".ds-cart { display: flex; flex-direction: column; gap: .55rem; background: repeating-linear-gradient(100deg, rgba(255,255,255,.035) 0px, rgba(255,255,255,.035) 1px, rgba(0,0,0,.05) 1px, rgba(0,0,0,.05) 2px), linear-gradient(180deg, #3d4149, #2a2d33); border: 1px solid #4a4e57; border-radius: 12px; padding: .7rem; box-shadow: 0 6px 20px rgba(0,0,0,.55); } .ds-cart-chips { display: flex; gap: .4rem; flex-wrap: wrap; } .ds-chip { font-family: 'IBM Plex Mono', monospace; font-size: .72rem; text-transform: uppercase; padding: .3rem .6rem; border-radius: 20px; border: 1px solid #4a4e57; background: #101214; color: #aeb2b9; } .ds-chip--active { border-color: #f2a71b; color: #f2a71b; } .ds-cart-commit { width: 100%; padding: .7rem; border-radius: 8px; border: 1px solid #f2a71b; background: #f2a71b; color: #15171a; font-weight: 600; font-size: .85rem; }"
+    },
+    {
+      "name": "Toast / Undo",
+      "kind": "custom",
+      "refersTo": "toast",
+      "description": "The system's one recovery mechanism: appears after every commit and every delete, per The No Silent Write Rule.",
+      "html": "<div class=\"ds-toast\"><span class=\"ds-toast-msg\">Logged breakfast · 1 item</span><button class=\"ds-toast-action\">Undo</button></div>",
+      "css": ".ds-toast { display: flex; align-items: center; gap: .7rem; background: #3d4149; border: 1px solid #4a4e57; border-radius: 10px; padding: .65rem .7rem; box-shadow: 0 6px 18px rgba(0,0,0,.5); } .ds-toast-msg { flex: 1; font-size: .82rem; color: #e8e6df; } .ds-toast-action { color: #f2a71b; font-weight: 600; font-size: .8rem; background: none; border: none; }"
+    },
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The confirming action in the settings sheet, and the sheet's 'Add to meal' / 'Save' action.",
+      "html": "<button class=\"ds-btn-primary\">Add to meal</button>",
+      "css": ".ds-btn-primary { padding: .55rem 1.1rem; border-radius: 8px; border: 1px solid #f2a71b; background: #f2a71b; color: #15171a; font-weight: 600; font-size: .85rem; cursor: pointer; } .ds-btn-primary:focus-visible { outline: 2px solid #f2a71b; outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Input",
+      "kind": "input",
+      "refersTo": "search-input",
+      "description": "The Catalog search field, pinned above the quick-add rack.",
+      "html": "<input class=\"ds-search-input\" type=\"search\" placeholder=\"Search the Catalog…\" />",
+      "css": ".ds-search-input { width: 100%; background: #101214; border: 1px solid #3d4149; border-radius: 8px; padding: .65rem .8rem; color: #e8e6df; font-family: 'IBM Plex Mono', monospace; font-size: .85rem; } .ds-search-input:focus-visible { outline: 2px solid #f2a71b; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Instrument Panel",
+    "overview": "Logging food should feel like scanning your own gauges before a flight, not filling out another diet app's form. The system is a cockpit instrument panel: a near-black brushed-metal chassis holding backlit dial-ring gauges, toggle-switch controls, and monospace digital readouts. Density is low and calm — four gauges, a search field, a rack of switches — because the panel is read multiple times a day at a glance, not browsed.\n\nThis is a phone-first Operate surface. Desktop renders the same panel centered in a fixed-width column rather than spreading into a wider dashboard layout.\n\nNothing writes to the server on a bare tap: food is staged into a pending meal (the cart tray) and only an explicit 'Log meal' commits, and every commit or delete surfaces an undo toast. This was added after /impeccable critique (2026-08-31) found the prior single-tap Quick Log wrote immediately with no confirmation and no undo, which caused a real accidental log.",
+    "keyCharacteristics": [
+      "Near-black chassis with brushed-metal bezels (a fine repeating diagonal hatch, never a flat gradient standing in for the material)",
+      "Amber backlit glow as the one active accent; green/red-orange reserved for on/over target state",
+      "Every numeral in IBM Plex Mono; every label and heading in IBM Plex Sans, ≥0.7rem",
+      "Toggle switches (meal membership), dial rings (progress), the cart tray, and meal headers as the signature vocabulary",
+      "Icons are drawn (inline SVG, single stroke weight), never Unicode glyphs or emoji",
+      "Every write is staged then confirmed, and every commit/delete gets an undo toast"
+    ],
+    "rules": [
+      { "name": "The One Accent Rule", "body": "Amber is the only color used for emphasis or action. Green and red-orange are status colors tied strictly to macro target state — they never appear as decoration or a second brand accent.", "section": "colors" },
+      { "name": "The Measurement-Only Mono Rule", "body": "Monospace is reserved for numbers and the labels directly attached to them. Entry and food names always render in the sans body face.", "section": "typography" },
+      { "name": "The One Glow Rule", "body": "The amber/red drop-shadow glow is reserved for the dial gauges' backlight. No other element glows.", "section": "elevation" },
+      { "name": "The Honest State Rule", "body": "A control's visual state always reflects real, current data — never a momentary animation that plays regardless of outcome. If a control can't stay truthfully lit, it doesn't light up at all.", "section": "components" },
+      { "name": "The No Silent Write Rule", "body": "Every action that writes to the server surfaces a toast naming what happened, with Undo when reversible. A tap that changes stored data and shows nothing is a defect.", "section": "components" }
+    ],
+    "dos": [
+      "Do keep the dial-ring gauge, toggle switch, cart tray, and meal header as the signature vocabulary.",
+      "Do render every icon as inline SVG at a single stroke weight (~1.6–1.8px), matching the gauge ring's line quality.",
+      "Do reserve the amber glow for dial gauges only.",
+      "Do switch a dial's fill, glow, value, and percentage together on crossing target.",
+      "Do route every new food through the meal cart, never a direct write.",
+      "Do keep every functional label at ≥0.7rem (11.2px) and --text-dim at its current, contrast-corrected value."
+    ],
+    "donts": [
+      "Don't use Unicode glyphs or emoji for icons.",
+      "Don't render a bezel as a flat gradient.",
+      "Don't widen the panel into a multi-column dashboard at desktop width.",
+      "Don't use monospace for free-text names.",
+      "Don't let a control fire a real write on a bare tap with no confirmation and no undo."
+    ]
+  }
+}

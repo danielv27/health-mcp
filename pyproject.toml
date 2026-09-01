@@ -9,6 +9,14 @@ dependencies = [
     "pydantic-settings>=2.7",
 ]
 
+[project.optional-dependencies]
+web = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.32",
+    "apscheduler>=3.10",
+    "anthropic>=0.40",
+]
+
 [project.scripts]
 health-mcp = "health_mcp.cli:main"
 
@@ -16,6 +24,7 @@ health-mcp = "health_mcp.cli:main"
 dev = [
     "pytest>=8.3",
     "time-machine>=2.16",
+    "health-mcp[web]",
 ]
 
 [build-system]

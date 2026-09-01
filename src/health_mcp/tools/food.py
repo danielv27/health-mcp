@@ -139,10 +139,15 @@ def log_food(
     macros: Macros | None = None,
     entered_as: str | None = None,
     at: datetime | None = None,
+    meal_id: int | None = None,
+    commit: bool = True,
 ) -> int:
     """Log a Food Log Entry against a Catalog Product, or a one-off with model-supplied
     Macros. Quantity is always grams; `entered_as` keeps the original phrasing for
-    display only — see CONTEXT.md "Food Log Entry"."""
+    display only — see CONTEXT.md "Food Log Entry".
+
+    `commit=False` lets `tools/meals.py log_meal` insert several entries under one
+    meal and commit once at the end, so a meal either logs completely or not at all."""
     if (product_id is None) == (macros is None):
         raise ValueError("pass exactly one of product_id or macros")
 
@@ -176,19 +181,27 @@ def log_food(
         """
         INSERT INTO food_log (
             logged_at, date, product_id, name, source, grams, entered_as,
-            kcal, protein, carbs, fat
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            kcal, protein, carbs, fat, meal_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             moment.isoformat(), date.isoformat(), product_id, entry_name, source,
-            grams, entered_as, kcal, protein, carbs, fat,
+            grams, entered_as, kcal, protein, carbs, fat, meal_id,
         ),
     )
-    conn.commit()
+    if commit:
+        conn.commit()
     return cur.lastrowid
 
 
 def delete_food_entry(conn: sqlite3.Connection, id: int) -> None:
+    """Delete a single Food Log Entry. Deliberately does NOT cascade-delete a
+    now-empty meal row: the edit flow (web/app.py's `/api/log`) deletes an entry
+    and immediately re-logs it under the same meal_id, including when it's the
+    meal's only entry — deleting the meal here would orphan that re-log with a
+    foreign key to a meal that no longer exists. An empty meal is harmless
+    metadata; `/api/today` skips meals with zero entries rather than the DB
+    deleting them out from under a request already in flight."""
     cur = conn.execute("DELETE FROM food_log WHERE id = ?", (id,))
     conn.commit()
     if cur.rowcount == 0:
